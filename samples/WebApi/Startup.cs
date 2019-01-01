@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Swashbuckle.AspNetCore.Swagger;
 using System.Collections.Generic;
 using tomware.Microwf.Core;
@@ -16,6 +17,7 @@ using WebApi.Domain;
 using WebApi.Identity;
 using WebApi.Workflows.Holiday;
 using WebApi.Workflows.Issue;
+using WebApi.Workflows.Stepper;
 
 namespace WebApi
 {
@@ -25,6 +27,10 @@ namespace WebApi
 
     public Startup(IConfiguration configuration)
     {
+      Log.Logger = new LoggerConfiguration().ReadFrom
+        .Configuration(configuration)
+        .CreateLogger();
+
       this.Configuration = configuration;
     }
 
@@ -116,25 +122,31 @@ namespace WebApi
       var workflowConf = CreateWorkflowConfiguration(); // GetWorkflowConfiguration(services);
       IOptions<ProcessorConfiguration> processorConf = GetProcessorConfiguration(services);
       services
-        .AddWorkflowEngineServices<DomainContext>(workflowConf, processorConf.Value)
+        .AddWorkflowEngineServices<DomainContext>(workflowConf)
+        .AddJobQueueServices<DomainContext>(processorConf.Value)
         .AddTestUserWorkflowMappings(CreateSampleUserWorkflowMappings());
 
       services.AddTransient<IWorkflowDefinition, HolidayApprovalWorkflow>();
       services.AddTransient<IWorkflowDefinition, IssueTrackingWorkflow>();
+      services.AddTransient<IWorkflowDefinition, StepperWorkflow>();
 
       services.AddTransient<IHolidayService, HolidayService>();
       services.AddTransient<IIssueService, IssueService>();
+      services.AddTransient<IStepperService, StepperService>();
     }
 
     public void Configure(
       IApplicationBuilder app,
       IHostingEnvironment env,
-      IApplicationLifetime appLifetime,
       ILoggerFactory loggerFactory
     )
     {
+      loggerFactory.AddSerilog();
+
       if (env.IsDevelopment())
       {
+        app.UseCors("AllowAllOrigins");
+
         app.UseDeveloperExceptionPage();
       }
       else
@@ -156,8 +168,6 @@ namespace WebApi
           });
         });
       }
-
-      app.UseCors("AllowAllOrigins");
 
       app.UseIdentityServer();
       // app.UseAuthentication();
@@ -182,20 +192,23 @@ namespace WebApi
           UserName = "admin",
           WorkflowDefinitions = new List<string> {
             HolidayApprovalWorkflow.TYPE,
-            IssueTrackingWorkflow.TYPE
+            IssueTrackingWorkflow.TYPE,
+            StepperWorkflow.TYPE
           }
         },
         new UserWorkflowMapping {
           UserName = "alice",
           WorkflowDefinitions = new List<string> {
             HolidayApprovalWorkflow.TYPE,
-            IssueTrackingWorkflow.TYPE
+            IssueTrackingWorkflow.TYPE,
+            StepperWorkflow.TYPE
           }
         },
         new UserWorkflowMapping {
           UserName = "bob",
           WorkflowDefinitions = new List<string> {
-            HolidayApprovalWorkflow.TYPE
+            HolidayApprovalWorkflow.TYPE,
+            StepperWorkflow.TYPE
           }
         }
       };
@@ -217,6 +230,12 @@ namespace WebApi
             Title = "Issue",
             Description = "Simple issue tracking process.",
             Route = "issue"
+          },
+          new WorkflowType {
+            Type = "StepperWorkflow",
+            Title = "Stepper",
+            Description = "Dummy workflow to test workflow processor.",
+            Route = ""
           }
         }
       };

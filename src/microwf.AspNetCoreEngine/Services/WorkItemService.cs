@@ -47,15 +47,15 @@ namespace tomware.Microwf.Engine
     public async Task<IEnumerable<WorkItem>> ResumeWorkItemsAsync()
     {
       return await _context.WorkItems
-        .Where(_ => _.Retries <= 3)
+        .Where(wi => wi.Retries <= 3)
         .ToListAsync<WorkItem>();
     }
 
     public async Task PersistWorkItemsAsync(IEnumerable<WorkItem> items)
     {
-      var ids = items.Select(_ => _.Id).ToArray();
+      var ids = items.Select(wi => wi.Id).ToArray();
       var existingItems = await _context.WorkItems
-        .Where(_ => ids.Contains(_.Id))
+        .Where(wi => ids.Contains(wi.Id))
         .ToListAsync<WorkItem>();
 
       var comparer = new WorkItemComparer();
@@ -85,9 +85,9 @@ namespace tomware.Microwf.Engine
 
   public class WorkItemComparer : IEqualityComparer<WorkItem>
   {
-    public bool Equals(WorkItem emp1, WorkItem emp2)
+    public bool Equals(WorkItem wm1, WorkItem wm2)
     {
-      if (emp1.Id == emp2.Id)
+      if (wm1.Id == wm2.Id)
       {
         return true;
       }
@@ -95,9 +95,9 @@ namespace tomware.Microwf.Engine
       return false;
     }
 
-    public int GetHashCode(WorkItem obj)
+    public int GetHashCode(WorkItem workItem)
     {
-      return obj.Id.GetHashCode();
+      return workItem.Id.GetHashCode();
     }
   }
 }

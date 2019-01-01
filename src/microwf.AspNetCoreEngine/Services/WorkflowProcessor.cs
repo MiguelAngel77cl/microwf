@@ -29,7 +29,7 @@ namespace tomware.Microwf.Engine
     {
       while (!stoppingToken.IsCancellationRequested)
       {
-        _logger.LogTrace($"Triggering processor...");
+        _logger.LogTrace($"Triggering JobQueueService.ProcessItemsAsync");
 
         await _jobQueueService.ProcessItemsAsync();
 
@@ -39,7 +39,7 @@ namespace tomware.Microwf.Engine
 
     public override async Task StopAsync(CancellationToken stoppingToken)
     {
-      _logger.LogTrace($"Stopping processor...");
+      _logger.LogTrace($"Stopping processor");
 
       await _jobQueueService.PersistWorkItemsAsync();
     }
